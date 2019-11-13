@@ -64,6 +64,7 @@ catch (e)
 }
 
 console.log("Querying SVN...");
+var svnStart = Date.now();
 
 exec("svn diff --summarize -r" + revisionNumber, {cwd: repoPath}, (error, stdout, stderr) => {
   if (error)
@@ -76,7 +77,7 @@ exec("svn diff --summarize -r" + revisionNumber, {cwd: repoPath}, (error, stdout
     console.error("stderr: " + error);
     return 4;
   }
-
+  console.log("\tSVN query complete in " + ((Date.now() - svnStart) / 1000.0) + " sec.");
   var changes = stdout.split('\n');
 
   for (let i in changes)
@@ -170,9 +171,4 @@ exec("svn diff --summarize -r" + revisionNumber, {cwd: repoPath}, (error, stdout
 function pairSort(left, right)
 {
   return left.dest.length - right.dest.length;
-}
-
-function pathSort(left, right)
-{
-  return left.length - right.length;
 }

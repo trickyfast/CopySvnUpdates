@@ -1,13 +1,16 @@
 {
   "name": "copysvnupdates",
   "version": "1.0.0",
-  "description": "",
+  "description": "Operates on an SVN repo. Given a revision number, copies all files which were modified or changed since then into a new directory. Useful for bringing in updates from an SVN repo into another type of repo (like git or mercurial), or into a project without version control. Also outputs a list of removed files.",
+  "keywords": ["svn", "version control", "changes", "recent changes", "repo", "repository"],
   "main": "index.js",
   "scripts": {
     "start": "index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Tricky Fast Studios, LLC",
+  "contributors": ["Joseph Jacir <jjacir@trickyfast.com> (http://trickyfast.com)"],
+  "bugs": {"url": "https://github.com/trickyfast/CopySvnUpdates"},
   "license": "ISC",
   "dependencies": {
     "commander": "^4.0.1"
