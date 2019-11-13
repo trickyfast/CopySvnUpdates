@@ -10,7 +10,6 @@ var outputPath = "";
 // To remove spaces and letters before path on svn diff summary output line
 var prefixFilter = /^\s?.\s+/gm;
 
-var dirs = [];
 var files = [];
 var removed = [];
 
@@ -54,7 +53,8 @@ if (!repoPath) repoPath = process.cwd;
 
 try {
   fs.mkdirSync(outputPath);
-} catch (e)
+} 
+catch (e)
 {
   if (e.code !== "EEXIST")
   {
@@ -89,47 +89,46 @@ exec("svn diff --summarize -r" + revisionNumber, {cwd: repoPath}, (error, stdout
     let fullPathChange = repoPath + "/" + change;
     try {
       let stats = fs.lstatSync(fullPathChange); 
-      if (stats.isDirectory()) {
-        dirs.push(change);
-      }
-      else if (stats.isFile)
-      {
+      if (stats.isFile) {
         files.push(new Pair(fullPathChange, change));
       }
-    } catch (lstatErr)
+    }
+    catch (lstatErr)
     {
-      if (lstatErr.code === "ENOENT")
-      {
+      if (lstatErr.code === "ENOENT") { // File doesn't exist, tested on Mac only
         removed.push(change);
       }
-      else
-      {
+      else {
         console.warn("Couldn't get info: " + lstatErr.path + "\t" + lstatErr.message);
       }
     }
   }
 
-  console.log("Changed files: " + files.length);
+  console.log("Changed files: " + files.length + ". Copying...");
 
-  dirs.sort(pathSort);
+  // Sort from shortest to longest path, because parent paths must be mkdir'd first
   files.sort(pairSort);
 
-  console.log("Copying...");
-  dirs.forEach((dir) => { 
-    //console.log(dir);
-    try {
-      fs.mkdirSync(outputPath + dir);
-    }
-    catch(e) {
-      if (e.code !== "EEXIST")
-      {
-        console.error("Error making dir: " + e.message);
-      }
-    }
-  });
-
   files.forEach((pair) => {
-    //console.log(pair.dest);
+    // Make all parent dirs if they don't exist
+    let dirs = pair.dest.split("/");
+    let curPath = outputPath;
+    for (let i = 0; i < dirs.length - 1; ++i)
+    {
+      curPath += dirs[i];
+      try {
+        fs.mkdirSync(curPath);
+      }
+      catch(e) {
+        if (e.code !== "EEXIST")
+        {
+          console.error("Error making dir: " + e.message);
+        }
+      }
+      curPath += "/";
+    }
+
+    // Copy from source to destination
     let src = pair.src;
     let dest = outputPath + pair.dest;
     try {
@@ -158,7 +157,7 @@ exec("svn diff --summarize -r" + revisionNumber, {cwd: repoPath}, (error, stdout
     }
     catch (exError) {
       console.error(exError);
-    }   
+    }
   });
 
   if (removed.length > 0)
