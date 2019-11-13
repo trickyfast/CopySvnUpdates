@@ -12,6 +12,7 @@ var prefixFilter = /^\s?.\s+/gm;
 
 var dirs = [];
 var files = [];
+var removed = [];
 
 function Pair(src, dest)
 {
@@ -51,15 +52,16 @@ if (outputPath[outputPath.length-1] !== "/") outputPath += "/";
 repoPath = commander.path;
 if (!repoPath) repoPath = process.cwd;
 
-if (fs.existsSync(outputPath))
+try {
+  fs.mkdirSync(outputPath);
+} catch (e)
 {
-  execSync("rm -rf " + outputPath, (error) => {console.error(error);});
+  if (e.code !== "EEXIST")
+  {
+    console.error("Error: " + e.message);
+    return 5;
+  }
 }
-fs.mkdirSync(outputPath);
-
-var tests = [" M      CAT/Assets/TrickyFastAddons/CATRPGBuilder/NPCs", "A       CAT/Assets/TrickyFastAddons/CATRPGBuilder/Combat/Triggers/OnCriticalDamage.cs"];
-
-// fs.copyFile("/Users/joseph/meh.txt", outputPath + "meh.txt", (err) => { if (err) console.error(err.message)});
 
 console.log("Querying SVN...");
 
@@ -76,29 +78,102 @@ exec("svn diff --summarize -r" + revisionNumber, {cwd: repoPath}, (error, stdout
   }
 
   var changes = stdout.split('\n');
-  console.log("Changes: " + changes.length);
 
   for (let i in changes)
   {
     let change = changes[i];
+    //console.log(change);
     change = change.replace(prefixFilter, "");
     if (change === "." || change === "") continue;
+
     let fullPathChange = repoPath + "/" + change;
-    fs.lstat(fullPathChange, (lstatErr, stats) => {
-      if (lstatErr) console.warn("Couldn't get info: " + lstatErr.path + "\t" + lstatErr.message);
-      else {
-        if (stats.isDirectory()) {
-          console.log("Dir: " + change);
-          //fs.mkdirSync(outputPath + "/" + change);
-        }
-        else if (stats.isFile)
-        {
-          console.log("File: " + change);
-          fs.copyFile(fullPathChange, outputPath + change, (error) => {
-            if (error) console.error(error.message);
-          });
-        }
+    try {
+      let stats = fs.lstatSync(fullPathChange); 
+      if (stats.isDirectory()) {
+        dirs.push(change);
       }
-    });
+      else if (stats.isFile)
+      {
+        files.push(new Pair(fullPathChange, change));
+      }
+    } catch (lstatErr)
+    {
+      if (lstatErr.code === "ENOENT")
+      {
+        removed.push(change);
+      }
+      else
+      {
+        console.warn("Couldn't get info: " + lstatErr.path + "\t" + lstatErr.message);
+      }
+    }
+  }
+
+  console.log("Changed files: " + files.length);
+
+  dirs.sort(pathSort);
+  files.sort(pairSort);
+
+  console.log("Copying...");
+  dirs.forEach((dir) => { 
+    //console.log(dir);
+    try {
+      fs.mkdirSync(outputPath + dir);
+    }
+    catch(e) {
+      if (e.code !== "EEXIST")
+      {
+        console.error("Error making dir: " + e.message);
+      }
+    }
+  });
+
+  files.forEach((pair) => {
+    //console.log(pair.dest);
+    let src = pair.src;
+    let dest = outputPath + pair.dest;
+    try {
+      if (!fs.existsSync(dest)) {
+        fs.copyFile(src, dest, (error) => {
+          if (error) {
+            console.error(error);
+          }
+        });
+      }
+      else {
+        fs.unlink(dest, (ulError) => {
+          if (error) 
+          {
+            console.error(ulError);
+          }
+          else {
+            fs.copyFile(src, dest, (cpError) => {
+              if (cpError) {
+                console.error(cpError);
+              }
+            });
+          }
+        });
+      }
+    }
+    catch (exError) {
+      console.error(exError);
+    }   
+  });
+
+  if (removed.length > 0)
+  {
+    console.log("The following files and directories were removed in the working copy since revision " + revisionNumber + ": \n================");
+    removed.forEach((gone) => {console.log(gone);});
   }
 });
+
+function pairSort(left, right)
+{
+  return left.dest.length - right.dest.length;
+}
+
+function pathSort(left, right)
+{
+  return left.length - right.length;
+}

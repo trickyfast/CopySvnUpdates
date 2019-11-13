@@ -7,7 +7,7 @@
     "start": "index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "",
+  "author": "Tricky Fast Studios, LLC",
   "license": "ISC",
   "dependencies": {
     "commander": "^4.0.1"
